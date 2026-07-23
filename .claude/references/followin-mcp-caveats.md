@@ -3,13 +3,15 @@
 > 7 个 v2 Skill（08/09/10/11/12/13/14）共享的调用红线与已知问题单一事实源。
 > 各 Skill 内联的 caveat 是本文件的本地镜像，**如有冲突以本文件为准**。
 > 维护纪律：MCP 行为每次变更 → 先改本文件 → 再 sweep 7 个 Skill 的内联镜像。
+>
+> **2026-07-23 schema 回归**：`keywords/categories/sources` 数组已恢复并在线实跑成功。当前 `metrics` / `signal` 每次最多 5 个 keywords；以运行时 tool schema 为最高优先级。
 
 ## 调用红线（全 Skill 通用）
 
 1. **asset_type 必须显式**：美股/大宗 `asset_type="tradfi"`，加密 `asset_type="crypto"`。不带会 fanout 双返污染（实测 BTC→美股 BTC Inc $33；AMN/WEST→crypto 山寨币 0.005 USDT）。**唯一例外：`news()` 不要传 asset_type**（is_tradfi 字段几乎全 false 老 bug，加 tradfi 返 0 results——0 篇不报错，比报错更危险）。例外扩展（2026-07-22 实测）：news 趋势模式（空 query）传 asset_type="tradfi" 可用且 quota=0；实体搜索亦 quota=0。"不传 asset_type"仅约束搜索模式的过滤语义。
 2. **SSE 并发 ≤4**：单批 ≤4 路 MCP 并行，超了 session 可能挂。
 3. **FRED macro 走 keywords 直查**：`keywords=["<series_id>"]` + `categories=["macro"]`。禁止 query 中文/混合自然语言（4 类语义陷阱：含 series_id 也被错抓 / 中文混淆 / degraded / 静默兜底）。中英文 → series_id 翻译表见 Skill 12。
-4. **B-31 边界**：FRED macro series **不要批量**（静默丢条目），各自单独 fire；market 行情快照可批量但**上限 10 个 keywords**（实测 2026-06-12：传 18 个被静默截断到 10，`meta.warnings` 有 `keyword_count_over_max` 提示——必须检查该 warning，超出分批）。不要在同一次调用里混 market ticker 和 FRED series。
+4. **B-31 边界**：FRED macro series **不要批量**（静默丢条目），各自单独 fire；market 行情快照按当前 schema **上限 5 个 keywords**，超出分批。每次必须检查 `meta.warnings`。不要在同一次调用里混 market ticker 和 FRED series。
 5. **news() query 三原则**：2-3 个核心名词；纯中文或纯英文不混搭；不写"影响/解读/分析/impact"等元词（embedding 过拟合 0 results）。单符号会被同名公司劫持（"CPI"→CPI Card PMTS），用双词消歧。news 无 sort_by 参数（相关性走 search_depth，默认 standard）。
 6. **商品 ticker**：黄金 `GCUSD`（GOLD 错抓 Gold.com 美股 $42）；白银 `SIUSD`；原油 `CLUSD`（WTI）/ `BZUSD`（布油）；**不要用 GOLD/SILVER/OIL alias**。⚠️ CLUSD 被 trend-scout 2026-07 实测 402 Special Endpoint；原油优先 BZUSD/USO，CLUSD 待复核（N-11）。
 7. **fundamentals comprehensive 必须显式 `query="全面分析"`**（或 `"comprehensive analysis"` 精确双词）：不带 query 走 default 只返 5 block；带 query 返 14 block（仅缺 stock_peers）。`query="comprehensive"` 单词无效。
@@ -45,7 +47,7 @@
 | N-5 | kol_call 原帖按提及 fanout 成多行（同 URL 不同 symbol/方向）；按 source_url 去重、symbol 字段归属 | 按 source_url 去重/symbol 归属 | 实测 2026-07-22 |
 | N-6 | insider/congress 行无视 time_range（7d 返回 2020 年记录）；客户端按 transactionDate 过滤强制 | 客户端按 transactionDate 过滤强制 | 实测 2026-07-22 |
 | N-7 | 13F institutional 申报季中期 investorsHolding 环比为残缺假信号（实测 NVDA 6234→1441）；申报季内禁止引用环比 | 申报季禁引环比 | 实测 2026-07-22 |
-| N-8 | keywords/categories/sources 数组参数 2026-07-20 起全域被序列化成字符串遭 schema 拒；统一走 query 串，服务端自解析（meta.filters_applied.keywords 可验证） | query 串替代；Dev 修复后回退 | trend-scout v1.11.x + 2026-07-22 复现（N-8）|
+| N-8 | keywords/categories/sources 数组曾在部分客户端被错误序列化；2026-07-23 当前 schema 在线回归已恢复 | 直接传数组；若某客户端仍报 -32602，视为客户端兼容问题并降级单标的调用 | 2026-07-23 回归关闭 |
 | N-9 | biggest gainers/losers 上游缺 marketCap 且全是仙股，禁用；改 `query="most active stocks"`，但实测（2026-07-22 2026-07-22 回归）board 行亦不带 marketCap（trend-scout 旧版记载已失效），需二次批量快照补市值后过滤；红线 9 的过滤清单继续沿用 | 改 query="most active stocks"；客户端 marketCap ≥$1B 过滤 + 剔杠杆 ETF + 仙股 <$5 | trend-scout 实测（N-9）＋2026-07-22 回归修正 |
 | N-10 | metrics time_range <1d 返一个月前旧数据 bug；小时级用 interval 参数或只用实时快照 | 小时级用 interval/实时快照 | trend-scout 实测（N-10）|
 | N-11 | 指数类 ^GSPC ^IXIC ^DJI ^VIX 可用；^DXY/CLUSD/NGUSD 为 402 Special Endpoint 禁调——与红线 6 的 CLUSD 记载冲突，实现时复核后统一 SSOT | 指数白名单 ^GSPC ^IXIC ^DJI ^VIX 可用；^DXY/CLUSD/NGUSD 402 | trend-scout 实测（N-11）|
@@ -57,4 +59,3 @@
 | N-17 | 财报日历漏掉当天美股大票：实测 2026-07-23 当日 30 条全被印度/欧洲/OTC 小票占满，而 AAL 的 `next_earnings_estimate.date` 明确是当天，日历却无此股 | limit≥100 + 客户端只留无后缀美股 symbol 并剔优先股(-P) + 对重点标的用 `next_earnings_estimate.date` 交叉验证；名单不全时如实标注 | 实测（2026-07-23 实跑） |
 | N-18 | 指数 query 串产生重复行：`"^GSPC ^IXIC ^DJI ^VIX"` 解析出 5 个 keywords（多一个裸 VIX），^VIX 返回两条相同行 | 客户端按 symbol 去重后再引用 | 实测（2026-07-23） |
 | N-19 | 研报榜排名基于 mention count，钻取时可能 `subject_reports=0` 只有 `mention_reports`（实测 GOOGL 榜单第 2、66 篇提及，但主题报告为 0，4 篇全是行业报告里的提及） | 榜单高位≠有专题报告；钻取后必须检查 subject/mention 两层比例，只有 mention 时贴文须写明"是被行业报告提及，不是专题研究" | 实测（2026-07-23） |
-

@@ -1,12 +1,34 @@
 # Followin Community Skills
 
-美股新手社群的内容运营 skill 套件 —— 基于 **Followin MCP**，六个模块覆盖一个社群运营者的一周。
+美股社群的内容与交易运营 skill 套件 —— 基于 **Followin MCP**，把市场数据、新闻、研报、社媒与公开策略信号编排成可审核的运营成品。
 
-> **仅供运营人员使用**：运营触发 skill、审核产出、发布内容；群成员只消费发布出去的内容，不与 skill 直接交互。v1 不做答疑服务形态。
+> **运营优先**：运营触发 skill、审核产出、发布内容；交易相关流程必须连接独立券商工具，并经过订单级人工确认。Followin MCP 本身不执行交易。
 
 ---
 
-## 六个模块
+## 推荐：标准 Agent Skill
+
+[`skills/followin-us-equity-ops/`](skills/followin-us-equity-ops/) 是当前推荐入口，适用于 Codex 及兼容 Agent Skills 的客户端。一个 Skill 内按需路由七条工作流：
+
+- 昨夜早报
+- 重要事件预告
+- 研报热度与目标价标准化
+- Twitter/X 热门标的
+- 美股交易员与分析师公开策略信号
+- KOL 信号订阅
+- 券商辅助交易台
+
+每次运行都返回「可发布内容 + 证据账本 + 编辑备注 + 下次刷新条件」，避免把 MCP 原始行直接扔给运营。
+
+```bash
+cp -R skills/followin-us-equity-ops ~/.codex/skills/
+```
+
+交易台只在存在独立券商/执行工具时提交订单；没有券商工具或缺少用户指定字段时只生成 `INCOMPLETE / NOT_SUBMITTED` 订单草案。
+
+---
+
+## 兼容的六个 Claude Commands
 
 | # | 文件 | 一句话定位 | 触发示例 | 单次额度 |
 |---|---|---|---|---|
@@ -23,9 +45,9 @@
 
 ---
 
-## 两份单一事实源（SSOT）
+## 旧 Commands 的两份单一事实源（SSOT）
 
-六个 skill 共享，冲突时以 SSOT 为准；改规则先改 SSOT，再 sweep 各 skill 内联镜像。
+六个旧 command 共享，冲突时以 SSOT 为准；改规则先改 SSOT，再 sweep 各 command 内联镜像。标准 Agent Skill 以当前 MCP tool schema 和自身 `references/tool-routing.md` 为准。
 
 - [`.claude/references/community-post-style.md`](.claude/references/community-post-style.md) —— 贴文风格规范：12 条编号规则（繁体用词、白话红线、贴文骨架、多空平衡、五条运营铁律、更正贴模板、发前自检清单）+ 4 份已核可样例。
 - [`.claude/references/followin-mcp-caveats.md`](.claude/references/followin-mcp-caveats.md) —— MCP 调用红线与已知问题登记表，其中 N 系列全部来自本项目的在线实测。
@@ -36,7 +58,9 @@
 
 ```bash
 # 1. 取得 Followin MCP API Key 并接入客户端（详见 https://followin.io/en/mcp）
-# 2. 安装 skill
+# 2A. 安装标准 Agent Skill
+cp -R skills/followin-us-equity-ops ~/.codex/skills/
+# 2B. Claude Commands 兼容安装
 cp skills-community/c*.md ~/.claude/commands/
 # 3. 直接说人话触发
 #    「跑早報」/「扫一下热点」/「研報熱點」/「溫度計」/「速查 SMCI」/「週報」

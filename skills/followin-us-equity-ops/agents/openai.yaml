@@ -1,0 +1,15 @@
+interface:
+  display_name: "Followin 美股运营台"
+  short_description: "把碎片化市场数据编排成早报、事件、研报、社媒信号和交易工作流"
+  default_prompt: "Use $followin-us-equity-ops to run today’s US-equity operating workflow and return a publishable brief with evidence."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "followin"
+      description: "Followin market data, news, research, social, and public trading signals"
+      transport: "streamable_http"
+      url: "https://mcp.followin.io/v2/mcp"
+
+policy:
+  allow_implicit_invocation: true

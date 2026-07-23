@@ -18,7 +18,7 @@ args: ticker(可选，指定则跳过榜单直接出笔记)
 | 步骤 | 调用 | 额度 |
 |---|---|---|
 | 1 | `metrics(query="research reports most mentioned stocks", asset_type="tradfi", time_range="7d")` 聚合榜 | 1 |
-| 2 | 对榜单 Top 3-5 逐个 `metrics(query="<TICKER> research reports", verbosity="detail", time_range="7d", asset_type="tradfi")`（实测可路由；标准客户端可用 keywords=[TICKER] 数组形态） | 各 1 |
+| 2 | 对榜单 Top 3-5 逐个 `metrics(keywords=["<TICKER>"], query="broker research reports and analyst price targets", categories=["fundamentals"], verbosity="detail", time_range="7d", asset_type="tradfi")` | 各 1 |
 
 ### 层 1：本周研报热议榜
 
@@ -39,13 +39,13 @@ args: ticker(可选，指定则跳过榜单直接出笔记)
 
 ### 层 2：研究笔记（对 Top 3-5 或指定标的）
 
-调用：`metrics(query="<TICKER> research reports", verbosity="detail", time_range="7d", asset_type="tradfi")`（实测可路由；标准客户端可用 `keywords=["<TICKER>"]` 数组形态）。
+调用：`metrics(keywords=["<TICKER>"], query="broker research reports and analyst price targets", categories=["fundamentals"], verbosity="detail", time_range="7d", asset_type="tradfi")`。
 
 对层 1 榜单 Top 3-5 逐个调用；若触发时带 args `ticker`，跳过层 1，只对该 ticker 调用一次。
 
 调用形态铁律（本序列全程通用）：
 
-> **调用形态铁律（2026-07-20 起生效，trend-scout v1.11.1 实测 + 2026-07-22 复现）**：`keywords/categories/sources` 等数组参数在当前环境会被序列化成字符串遭 schema 拒（连环 -32602）。所有调用规范以 **query 自然语言/空格拼串为主写法**（服务端自解析成 keywords，meta 可验证），数组形式仅作"标准客户端若可传数组"的备选注记。批量降级梯：① keywords 数组批量（≤10，B-31）→ ② query 串批量（crypto 实测可行，tradfi 多 ticker 可能被路由到 fundamentals，实现时验证）→ ③ 单 ticker 并行、每批 ≤4 路（SSE 红线）。另：Followin session 每 5-8 次调用可能短挂，重试 1 次即恢复，还不行让运营 `/mcp restart followin`。
+> **当前调用形态（2026-07-23 回归）**：按 tool schema 直接传 `keywords/categories/sources` 数组；`metrics` / `signal` 每次最多 5 个 keywords，超出分批，并检查 `meta.warnings` 与 `meta.filters_applied`。若特定客户端仍报 -32602，再降级为单 ticker 调用；不要把多个 ticker 拼进 query。
 
 每步 query 主形态调用示例：
 
@@ -53,8 +53,8 @@ args: ticker(可选，指定则跳过榜单直接出笔记)
 1. metrics(query="research reports most mentioned stocks", asset_type="tradfi", time_range="7d")
    # 层 1 聚合榜；query 必须含研报意图词（红线 12，见第 3 节），不可只放标的名或话题词
 
-2. metrics(query="<TICKER> research reports", verbosity="detail", time_range="7d", asset_type="tradfi")
-   # 层 2 单标的钻取；标准客户端备选：keywords=["<TICKER>"], query="research reports", verbosity="detail", time_range="7d", asset_type="tradfi"
+2. metrics(keywords=["<TICKER>"], query="broker research reports and analyst price targets", categories=["fundamentals"], verbosity="detail", time_range="7d", asset_type="tradfi")
+   # 层 2 单标的钻取
    # Top 3-5 逐个调用，每批 ≤4 路并行（SSE 红线 2，Top 5 时拆成 4+1 两批）；带 args ticker 时只此一次，跳过步骤 1
 ```
 

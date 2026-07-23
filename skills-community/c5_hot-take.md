@@ -38,7 +38,7 @@ N-10 记载的是 `metrics()` 工具在 `time_range` 小于 1 天时会返回一
 
 调用形态铁律（本序列全程通用）：
 
-> **调用形态铁律（2026-07-20 起生效，trend-scout v1.11.1 实测 + 2026-07-22 复现）**：`keywords/categories/sources` 等数组参数在当前环境会被序列化成字符串遭 schema 拒（连环 -32602）。所有调用规范以 **query 自然语言/空格拼串为主写法**（服务端自解析成 keywords，meta 可验证），数组形式仅作"标准客户端若可传数组"的备选注记。批量降级梯：① keywords 数组批量（≤10，B-31）→ ② query 串批量（crypto 实测可行，tradfi 多 ticker 可能被路由到 fundamentals，实现时验证）→ ③ 单 ticker 并行、每批 ≤4 路（SSE 红线）。另：Followin session 每 5-8 次调用可能短挂，重试 1 次即恢复，还不行让运营 `/mcp restart followin`。
+> **当前调用形态（2026-07-23 回归）**：按 tool schema 直接传 `keywords/categories/sources` 数组；`metrics` / `signal` 每次最多 5 个 keywords，超出分批，并检查 `meta.warnings` 与 `meta.filters_applied`。若特定客户端仍报 -32602，再降级为单 ticker 调用；不要把多个 ticker 拼进 query。
 
 每步 query 主形态调用示例：
 
@@ -88,14 +88,14 @@ N-10 记载的是 `metrics()` 工具在 `time_range` 小于 1 天时会返回一
 | 步骤 | 调用 | 额度 |
 |---|---|---|
 | 3 | `news(query="<核心名词×2>", time_range="24h")` 补事件细节与推特层原文 | 0（实测） |
-| 4 | 受影响标的 ≤10 一批 `metrics(keywords=[…], asset_type="tradfi")` 实时快照（含盘前盘后价） | 1 |
+| 4 | 受影响标的按每批 ≤5 调用 `metrics(keywords=[…], asset_type="tradfi")` 实时快照（含盘前盘后价） | 1-2 |
 | 5 | （可选，重大事件）`signal(keywords=[TICKER], query="详细仓位", …)` 或研报钻取加一层深度 | 1-2 |
 
 若触发时带 args `topic_or_ticker` 或从菜单选中编号，第 3 步的"核心名词×2"直接取自选中话题/标的名，跳过第 1 节的步骤 1-2。
 
-调用形态铁律同第 1 节（本序列同样全程适用，批量标的走 query 串或数组降级梯）：
+调用形态铁律同第 1 节（本序列同样全程适用，批量标的走显式 keywords 数组）：
 
-> **调用形态铁律（2026-07-20 起生效，trend-scout v1.11.1 实测 + 2026-07-22 复现）**：`keywords/categories/sources` 等数组参数在当前环境会被序列化成字符串遭 schema 拒（连环 -32602）。所有调用规范以 **query 自然语言/空格拼串为主写法**（服务端自解析成 keywords，meta 可验证），数组形式仅作"标准客户端若可传数组"的备选注记。批量降级梯：① keywords 数组批量（≤10，B-31）→ ② query 串批量（crypto 实测可行，tradfi 多 ticker 可能被路由到 fundamentals，实现时验证）→ ③ 单 ticker 并行、每批 ≤4 路（SSE 红线）。另：Followin session 每 5-8 次调用可能短挂，重试 1 次即恢复，还不行让运营 `/mcp restart followin`。
+> **当前调用形态（2026-07-23 回归）**：按 tool schema 直接传 `keywords/categories/sources` 数组；`metrics` / `signal` 每次最多 5 个 keywords，超出分批，并检查 `meta.warnings` 与 `meta.filters_applied`。若特定客户端仍报 -32602，再降级为单 ticker 调用；不要把多个 ticker 拼进 query。
 
 每步 query 主形态调用示例：
 
@@ -103,14 +103,14 @@ N-10 记载的是 `metrics()` 工具在 `time_range` 小于 1 天时会返回一
 3. news(query="<核心名词1> <核心名词2>", time_range="24h")
    # 搜索模式：不传 asset_type（红线 1）；quota=0（实测）；核心名词直接取自菜单条目或点名内容
 
-4. metrics(query="<TICKER1> <TICKER2> ...", asset_type="tradfi")
-   # 受影响标的批量快照；上限对齐 B-31（market 批量上限 10 keywords，超出被静默截断到 10，meta.warnings 会带 keyword_count_over_max，需检查该 warning 并分批重跑）
+4. metrics(keywords=["<TICKER1>","<TICKER2>"], query="live market snapshot", categories=["market"], asset_type="tradfi")
+   # 受影响标的批量快照；market 每次最多 5 keywords，超出分批，并检查 meta.warnings
    # 标准客户端可用数组形态：metrics(keywords=["<TICKER1>", "<TICKER2>", ...], asset_type="tradfi")
    # 若热点发生在盘前/盘后时段，快照自带的 extendedHoursQuote 字段可直接引用并标注「盤前」/「盤後」
 
-5. signal(query="<TICKER> 详细仓位", asset_type="tradfi", time_range="7d")
+5. signal(keywords=["<TICKER>"], categories=["kol_call","trader_position"], query="detail", asset_type="tradfi", time_range="7d")
    # 可选，重大事件才加：喊单/实盘/内部人四维钻取深度（做法同 c4 步骤 2）
-   # 或改走研报深度：metrics(query="<TICKER> research reports", verbosity="detail", time_range="7d", asset_type="tradfi")（做法同 c3 步骤 2）
+   # 或改走研报深度：metrics(keywords=["<TICKER>"], query="broker research reports", categories=["fundamentals"], verbosity="detail", time_range="7d", asset_type="tradfi")（做法同 c3 步骤 2）
 ```
 
 ### 2.2 产出模板：速报体（300-500 字）
@@ -154,15 +154,14 @@ N-10 记载的是 `metrics()` 工具在 `time_range` 小于 1 天时会返回一
 
 ## 3. 财报速读子型（财报季日常）
 
-> **财报速读子型（财报季日常）**：菜单或运营点名识别到财报事件（"XX 财报出来了"）→ 走专用成稿路径：`metrics(query="<TICKER> earnings beat miss analyst ratings", asset_type="tradfi")`（≈1-2 点，query 关键词路由实现时按 fanout warning 提示词验证）→ 速读贴固定四句结构：**營收/EPS 超或不及预期（具体数字 vs 预期）→ 指引怎么说 → 盘后股价反应 → 下一个观察点**。财报密集周这是 c5 的主要形态。
+> **财报速读子型（财报季日常）**：菜单或运营点名识别到财报事件（"XX 财报出来了"）→ 走专用成稿路径：`metrics(keywords=["<TICKER>"], query="earnings results and analyst ratings", categories=["fundamentals"], asset_type="tradfi")`（≈1-2 点）→ 速读贴固定四句结构：**營收/EPS 超或不及预期（具体数字 vs 预期）→ 指引怎么说 → 盘后股价反应 → 下一个观察点**。财报密集周这是 c5 的主要形态。
 
 识别规则：触发短语含"财报"关键词（如"XX 财报出来了"），或第 1 节扫描菜单里某条候选本身就是财报事件，或运营从 c6 标的速查"🔥 值得速报"衔接过来且该标的当日有财报——三种情形都路由到本节的专用速读路径，不走第 2 节的常规速报模板。
 
-调用（2026-07-23 GOOGL 财报夜实跑修订，原写法已废弃）：**禁止**使用 `query="<TICKER> earnings beat miss analyst ratings"`——实测该串里的 "beat" 被关键词抽取器当成 ticker，实际解析出 `keywords=["GOOGL","BEAT"]`，把仙股 HeartBeam（BEAT，$0.55）的行情混进快照（N-14）。正确写法是纯 ticker 加自然语言意图词，不要在 query 里放会撞 ticker 的英文单词：
+调用（2026-07-23 schema 回归修订）：把 ticker 放在显式 `keywords`，分析角度放在 `query`，并核对 `meta.filters_applied`：
 
 ```
-metrics(query="<TICKER> 财报 分析师评级", asset_type="tradfi")
-# 或最稳的形态：query 只放 ticker → metrics(query="<TICKER>", asset_type="tradfi")
+metrics(keywords=["<TICKER>"], query="earnings results and analyst ratings", categories=["fundamentals"], asset_type="tradfi")
 # 无论哪种，调用后必须核对 meta.filters_applied.keywords 是否只含目标 ticker（N-12/N-14）
 ```
 

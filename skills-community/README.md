@@ -1,6 +1,6 @@
 # Followin MCP — Skills Community（社群运营 Bundle）
 
-> 基于 **Followin MCP** 的 6 个社群运营 Skill —— 面向美股新手交易社群，一句话触发即可产出可直接复制粘贴的繁体中文社群贴文
+> 基于 **Followin MCP** 的 6 个 Claude Commands 兼容模块。新项目优先安装仓库根目录的标准 Agent Skill：[`skills/followin-us-equity-ops/`](../skills/followin-us-equity-ops/)。
 
 这是运营人员的操作手册：定位声明、六模块速查表、每周运营节奏建议、安装方式、额度预算、可直接贴群的置顶帖模板、以及 Claude Code 定时任务示例，都在本文件里。
 
@@ -73,7 +73,7 @@ cp skills-community/*.md ~/.claude/commands/
 
 ### MCP 接入
 
-六个模块合计只依赖 Followin MCP 的 3 个工具——`metrics` / `news` / `signal`（不需要 `twitter`）。注册账户、获取 API Key、各 AI 客户端（Claude Desktop / Cursor / Claude Code / Windsurf）的具体配置步骤，统一见仓库根目录 [`USER_GUIDE.md`](../USER_GUIDE.md) §"MCP 4 个核心工具"与§"快速接入（5 分钟）"。
+六个兼容模块合计只依赖 Followin MCP 的 3 个工具——`metrics` / `news` / `signal`。标准 Agent Skill 还会在命名账户、原始推文和信号订阅场景使用 `twitter` / `subscription`。注册账户、获取 API Key和接入方式见 [Followin MCP](https://followin.io/en/mcp)。
 
 ---
 
@@ -92,7 +92,7 @@ cp skills-community/*.md ~/.claude/commands/
 如实说明：
 - **Basic**（1,000 点/月）可以跑，但余量收窄——扣掉 600-750 后每月只剩 250-400 点弹性，遇到财报季速查触发变频繁、或临时多加跑几次温度计/速报，容易紧张。
 - **财报季**：c6 速查与 c5 财报速读的触发频率通常会明显上升，建议升级 **Pro**（5,000 点/月）留出余量——这是如实的用量说明，不是营销话术。
-- **数组恢复后回落**：以上估算是在"`keywords/categories` 数组参数失效、批量调用退化为单标的并行"的现状下测得（各 skill 文件"调用形态铁律"一节）；Dev 端修复数组支持、批量调用能重新合并成单次调用后，实际月耗预计会回落——具体回落幅度未实测，需 Dev 修复后重新采样确认，此处不做无依据的估算。
+- **数组参数已恢复**：2026-07-23 在线回归确认 `keywords/categories/sources` 数组可按当前 schema 正常调用；`metrics` / `signal` 单次最多 5 个 keywords。以上额度是历史样本，只用于粗略预算，正式运营应以当次 `meta.quota` 为准。
 
 ---
 
@@ -127,7 +127,7 @@ cp skills-community/*.md ~/.claude/commands/
 
 ## 🔗 相关资料
 
-- 完整 MCP 接入 / 定价文档：[`USER_GUIDE.md`](../USER_GUIDE.md)
+- MCP 接入文档：[Followin MCP](https://followin.io/en/mcp)
 - 贴文风格规范（S-1~S-12 + 已核可样例）：[`.claude/references/community-post-style.md`](../.claude/references/community-post-style.md)
 - MCP 调用 caveats 单一事实源：[`.claude/references/followin-mcp-caveats.md`](../.claude/references/followin-mcp-caveats.md)
 - 设计文档（需求边界/架构/验收标准）：[`docs/设计文档.md`](../docs/设计文档.md)

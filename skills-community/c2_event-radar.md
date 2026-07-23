@@ -32,17 +32,17 @@ args: 无
 | 步骤 | 调用 | 额度 |
 |---|---|---|
 | 1 | `metrics(query="earnings calendar", asset_type="tradfi", date_from/date_to=未来7天)` | 1 |
-| 2 | 初筛 shortlist ≤10 批量快照补市值 | 1 |
-| 3 | `metrics(keywords=["economic calendar"], categories=["macro"])` | 1 |
+| 2 | 初筛 shortlist 分批快照补市值（每批 ≤5） | 1-2 |
+| 3 | `metrics(query="economic calendar", categories=["macro"], country="US", date_from/date_to=未来7天)` | 1 |
 
 三步各自的要点：
 - **步骤 1**：财报日历，query+date 窗口拿未来 7 天的美股财报名单；返回全球交易所混排、无市值字段，过滤链见第 2 节（N-2）。
-- **步骤 2**：对步骤 1 初筛后的 shortlist（≤10 只）批量补市值，用于最终按市值排序取 Top 5-8。
-- **步骤 3**：经济日历。红线 10：`metrics(keywords=["economic calendar"], categories=["macro"])`。query 别带"本周"——实测（2026-06-12）"本周"被解析成 lookback 7 天，返回**已发布历史**而非前瞻日历。表中这行仍是数组写法，但按下面的调用形态铁律，当前环境数组参数会被 schema 拒（N-8）；**query 串形态 2026-07-22 回归实测确认可路由**（同 c1 步骤 6）：会返回真实日历数据且不报错，但 **date_from/date_to 对这条 query 串完全不生效**——无论传"今天+未来 7 天"、"明天+未来 7 天"、或完全不传日期，每次都只回传"锚定日当天"约 10 条（不传日期时锚定日=调用当下的自然日），7 天窗口不会被单次调用覆盖。c2 若要真正拿到未来 7 天的经济日历，目前只能对未来每一天各发一次调用（date_from 逐日往后挪，7 次对应 7 天，各计 1 额度），或退回第 3 节"日期核实制度"已有的 news() 交叉核实 + 人工锚点表做法，只覆盖 CPI/FOMC/非农等高关注度单一事件。c2 没有再下一级可退，数组写法先保留作"标准客户端若可传数组"的备选注记，不删除。
+- **步骤 2**：对步骤 1 初筛后的 shortlist 分批补市值（每批最多 5 只），用于最终按市值排序取 Top 5-8。
+- **步骤 3**：经济日历。使用 `categories=["macro"]`、`country="US"` 和明确 `date_from/date_to`。2026-07-23 在线回归确认单次调用可返回多日窗口。仍需按 `impact` 筛选，并对 CPI、FOMC、非农等高影响事件做日期核实。
 
 调用形态铁律（本序列全程通用）：
 
-> **调用形态铁律（2026-07-20 起生效，trend-scout v1.11.1 实测 + 2026-07-22 复现）**：`keywords/categories/sources` 等数组参数在当前环境会被序列化成字符串遭 schema 拒（连环 -32602）。所有调用规范以 **query 自然语言/空格拼串为主写法**（服务端自解析成 keywords，meta 可验证），数组形式仅作"标准客户端若可传数组"的备选注记。批量降级梯：① keywords 数组批量（≤10，B-31）→ ② query 串批量（crypto 实测可行，tradfi 多 ticker 可能被路由到 fundamentals，实现时验证）→ ③ 单 ticker 并行、每批 ≤4 路（SSE 红线）。另：Followin session 每 5-8 次调用可能短挂，重试 1 次即恢复，还不行让运营 `/mcp restart followin`。
+> **当前调用形态（2026-07-23 回归）**：按 tool schema 直接传 `keywords/categories/sources` 数组；`metrics` / `signal` 每次最多 5 个 keywords，超出分批，并检查 `meta.warnings` 与 `meta.filters_applied`。若特定客户端仍报 -32602，再降级为单 ticker 调用；不要把多个 ticker 拼进 query。
 
 每步 query 主形态调用示例：
 
@@ -50,11 +50,11 @@ args: 无
 1. metrics(query="earnings calendar", asset_type="tradfi", date_from="<今日>", date_to="<未来第7天>")
    # 财报日历；返回全球交易所混排、无市值字段，过滤规则见第 2 节（N-2）
 
-2. metrics(query="<TICKER1> <TICKER2> ...", asset_type="tradfi")
-   # 初筛 shortlist ≤10 批量补市值；上限与 B-31（market 批量上限 10 keywords）吻合，超过需分批，每批 ≤4 路（SSE 红线）
+2. metrics(keywords=["<TICKER1>","<TICKER2>"], query="live market snapshot", categories=["market"], asset_type="tradfi")
+   # 初筛 shortlist 分批补市值；market 每次最多 5 keywords，超过需分批
 
-3. metrics(query="economic calendar upcoming releases")
-   # 经济日历；query 严禁带"本周"（红线 10：会被解析成 lookback 7 天，返回已发布历史而非前瞻日历）；2026-07-22 实测确认 query 串可路由，但只回传锚定日当天（date_from/date_to 不影响窗口宽度），真正的 7 天前瞻需逐日调用 7 次，或退回人工锚点表覆盖高关注度事件（见上）
+3. metrics(query="economic calendar", categories=["macro"], country="US", date_from="<今日>", date_to="<未来第7天>")
+   # 单次多日窗口；按 impact 筛选并交叉核实高影响事件日期
 ```
 
 ## 2. 财报日历过滤规则（N-2）
@@ -146,8 +146,8 @@ args: 无
 
 - **财报日历过滤链**（N-2，见第 2 节）：无后缀 symbol → revenueEstimated > $1B 初筛 → 市值排序取 Top 5-8，缺一步都可能把非美股或冷门标的塞进贴文。
 - **经济日历"本周"禁令**（红线 10，见第 1 节）：query 绝对不能带"本周"，只能读日历返回值本身的日期字段；"本周"被解析成 lookback 7 天，返回的是已发布历史而非前瞻日历。
-- **数组参数失效**（N-8）：`keywords/categories/sources` 数组 2026-07-20 起在当前环境被序列化成字符串遭 schema 拒；本 skill 全程走 query 串或空格拼串主形态，数组形式只作"标准客户端若可传数组"的备选注记，Dev 修复后可回退批量。
-- **shortlist 批量上限**（B-31 镜像）：初筛后批量补市值上限 10 个，与 market 批量上限吻合；若因 N-8 改走逐个单查，按 SSE 红线单批 ≤4 路并发。
+- **数组参数**（N-8 已关闭）：2026-07-23 当前 schema 在线回归确认数组可用；特定客户端仍报 -32602 时才降级为单 ticker 调用。
+- **shortlist 批量上限**（B-31 镜像）：初筛后批量补市值每次最多 5 个 keywords，超过分批。
 - **双时区+禁惯例推算**（S-7 铁律4，见第 3 节）：宏观/财报时间一律标 美东+台北 双时区，禁止凭经验推算日期。
 - **SSE 并发上限**（红线 2）：任何拆成多路单查的步骤，单批 ≤4 路并发，超了 session 可能挂。
 

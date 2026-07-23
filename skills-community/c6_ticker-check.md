@@ -23,27 +23,27 @@ args: ticker(必填)
 
 | 步骤 | 调用 | 额度 |
 |---|---|---|
-| 1 | `metrics(query="<TICKER> price target analyst ratings", asset_type="tradfi")` 快照 + 分析师共识（中位/最高/最低目标价） | 1 |
+| 1 | `metrics(keywords=["<TICKER>"], query="analyst price targets and ratings", categories=["market","fundamentals"], asset_type="tradfi")` 快照 + 分析师共识（中位/最高/最低目标价） | 1 |
 | 2 | `news(query="<TICKER> <公司名>", time_range="7d", limit=5)` 近期新闻要点 | 0（实测） |
-| 3 | （可选，热议标的才加）`signal(query="<TICKER> 详细仓位", …)` 内部人/喊单/实盘温度 | 1 |
+| 3 | （可选，热议标的才加）`signal(keywords=["<TICKER>"], categories=["kol_call","trader_position","insider_trading"], query="detail", …)` 内部人/喊单/实盘温度 | 1 |
 
 步骤 3 只在标的本身是"热议标的"时才加跑——比如触发本次速查正是因为群里在热议它（场景①），或步骤 1-2 的数据已经显示情绪面/新闻热度明显。单纯写贴文前的常规摸底（场景②）多数情况下两步（≈1 点）就够，不必每次都跑步骤 3。
 
 调用形态铁律（架构 §2 镜像，本序列全程通用，即 N-8 登记项的操作化版本）：
 
-> **调用形态铁律（2026-07-20 起生效，trend-scout v1.11.1 实测 + 2026-07-22 复现）**：`keywords/categories/sources` 等数组参数在当前环境会被序列化成字符串遭 schema 拒（连环 -32602）。所有调用规范以 **query 自然语言/空格拼串为主写法**（服务端自解析成 keywords，meta 可验证），数组形式仅作"标准客户端若可传数组"的备选注记。批量降级梯：① keywords 数组批量（≤10，B-31）→ ② query 串批量（crypto 实测可行，tradfi 多 ticker 可能被路由到 fundamentals，实现时验证）→ ③ 单 ticker 并行、每批 ≤4 路（SSE 红线）。另：Followin session 每 5-8 次调用可能短挂，重试 1 次即恢复，还不行让运营 `/mcp restart followin`。
+> **当前调用形态（2026-07-23 回归）**：按 tool schema 直接传 `keywords/categories/sources` 数组；`metrics` / `signal` 每次最多 5 个 keywords，超出分批，并检查 `meta.warnings` 与 `meta.filters_applied`。若特定客户端仍报 -32602，再降级为单 ticker 调用；不要把多个 ticker 拼进 query。
 
 每步 query 主形态调用示例：
 
 ```
-1. metrics(query="<TICKER> price target analyst ratings", asset_type="tradfi")
+1. metrics(keywords=["<TICKER>"], query="analyst price targets and ratings", categories=["market","fundamentals"], asset_type="tradfi")
    # 快照+分析师共识一次拿全：中位/最高/最低目标价、参与家数；行情位置段落的"现价对 52 周区间"同样取自这次快照，不必另外调用
    # 若 ticker 非美股正股（代币化/OTC/仙股/加密），本步骤按第 3 节防坑规则直接短路，不必往下跑步骤 2-3
 
 2. news(query="<TICKER> <公司名>", time_range="7d", limit=5)
    # 搜索模式：不传 asset_type（红线 1）；quota=0（实测）；limit=5 控制返回条数，近期叙事段落只需挑 1 条最具代表性的
 
-3. signal(query="<TICKER> 详细仓位", asset_type="tradfi", time_range="7d")
+3. signal(keywords=["<TICKER>"], categories=["kol_call","trader_position","insider_trading"], query="detail", asset_type="tradfi", time_range="7d")
    # 可选，仅热议标的才加：内部人/喊单/实盘四维钻取，做法同 c4 步骤 2、c5 步骤 5；query 禁放"KOL"等元词——会被解析成 crypto 关键词，实测空返（防坑镜像见第 3 节）
 ```
 
