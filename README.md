@@ -13,7 +13,7 @@
 | **c1** | [`c1_daily-brief.md`](skills-community/c1_daily-brief.md) | 每日早报（晨报/开盘前瞻/刷新 三模式） | 「跑早報」「開盤前瞻」 | ≈7 |
 | **c2** | [`c2_event-radar.md`](skills-community/c2_event-radar.md) | 週報：上周兑现回顾 + 本周事件预告 | 「週報」「本周看点」 | ≈3 |
 | **c3** | [`c3_research-hot.md`](skills-community/c3_research-hot.md) | 研报热议榜 + 单标的研究笔记 | 「研報熱點」「给 NVDA 写研究笔记」 | ≈4-6 |
-| **c4** | [`c4_social-pulse.md`](skills-community/c4_social-pulse.md) | 热议标的温度计（喊单 × 实盘 × 内部人） | 「溫度計」「推特在吵什么」 | ≈4-6 |
+| **c4** | [`c4_social-pulse.md`](skills-community/c4_social-pulse.md) | 温度计（单标的四维交叉）+ 讯号汇总（市场级策略聚合） | 「溫度計」「訊號彙總」 | ≈2-6 |
 | **c5** | [`c5_hot-take.md`](skills-community/c5_hot-take.md) | 实时热点扫描 + 速报 + 财报速读 | 「扫一下热点」「TSLA 财报出来了」 | ≈1-3 |
 | **c6** | [`c6_ticker-check.md`](skills-community/c6_ticker-check.md) | 运营内部选题速查（产出不对外） | 「速查 SMCI」「这票值不值得写」 | ≈2 |
 
@@ -46,7 +46,7 @@ cp skills-community/c*.md ~/.claude/commands/
 
 ## 先看产出长什么样
 
-**[`docs/产出样张集.md`](docs/产出样张集.md)** —— 10 份真实实跑产出，覆盖 6 个模块中的 5 个（含跨源打架、数据稀薄、缺数据时的诚实标注三类边界案例）。全部为真实数据，非示意稿。
+**[`docs/产出样张集.md`](docs/产出样张集.md)** —— 11 份真实实跑产出，覆盖 6 个模块中的 5 个（含跨源打架、数据稀薄、缺数据时的诚实标注三类边界案例）。全部为真实数据，非示意稿。
 
 ---
 
