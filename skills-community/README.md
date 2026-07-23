@@ -10,7 +10,7 @@
 
 本 bundle **仅供社群运营人员使用**：运营触发 skill、审核产出、决定是否发布；群成员只消费运营发布出去的内容，不与任何 skill 产生直接或间接交互。
 
-**不做答疑服务**（v1 明确边界）：运营代群成员现查现答某个具体问题，属于答疑服务形态，v1 版本不支持——这类需求属于 v2 backlog，见 [`docs/superpowers/specs/2026-07-22-community-content-skills-design.md`](../docs/superpowers/specs/2026-07-22-community-content-skills-design.md) §8「群问答回复体模式」。
+**不做答疑服务**（v1 明确边界）：运营代群成员现查现答某个具体问题，属于答疑服务形态，v1 版本不支持——这类需求属于 v2 backlog，见 [`docs/设计文档.md`](../docs/设计文档.md) §8「群问答回复体模式」。
 
 六个模块的产出物性质也不相同：**c1-c5** 是"运营零加工即发"的社群贴文；**c6** 是"运营自己看"的内部备忘，产出不对外，禁止直接复制进群（每份备忘尾行都固定提示这一点）。
 
@@ -45,7 +45,7 @@
 
 ## 4️⃣ 安装方式
 
-同 [`skills-v2/README.md`](../skills-v2/README.md) 的三种安装方式，路径换成 `skills-community/`：
+三种安装方式（路径为 `skills-community/`）：
 
 ### 方法 1：复制到全局 commands 目录（推荐）
 
@@ -130,7 +130,7 @@ cp skills-community/*.md ~/.claude/commands/
 - 完整 MCP 接入 / 定价文档：[`USER_GUIDE.md`](../USER_GUIDE.md)
 - 贴文风格规范（S-1~S-12 + 已核可样例）：[`.claude/references/community-post-style.md`](../.claude/references/community-post-style.md)
 - MCP 调用 caveats 单一事实源：[`.claude/references/followin-mcp-caveats.md`](../.claude/references/followin-mcp-caveats.md)
-- 设计文档（需求边界/架构/验收标准）：[`docs/superpowers/specs/2026-07-22-community-content-skills-design.md`](../docs/superpowers/specs/2026-07-22-community-content-skills-design.md)
+- 设计文档（需求边界/架构/验收标准）：[`docs/设计文档.md`](../docs/设计文档.md)
 
 ---
 
